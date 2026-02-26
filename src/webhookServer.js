@@ -1,10 +1,12 @@
 const express = require('express');
 const crypto = require('crypto');
+const { ChannelType } = require('discord.js');
 const {
   buildPushEmbed,
   buildPullRequestEmbed,
   buildIssueEmbed,
   buildReleaseEmbed,
+  buildStarEmbed,
 } = require('./embeds');
 
 function verifySignature(rawBody, secret, signatureHeader) {
@@ -96,6 +98,9 @@ function createWebhookServer(discordClient) {
         case 'release':
           embed = buildReleaseEmbed(payload);
           break;
+        case 'watch':
+          embed = buildStarEmbed(payload);
+          break;
         default:
           console.log(`[Webhook] Unhandled event type: "${event}"`);
       }
@@ -108,7 +113,10 @@ function createWebhookServer(discordClient) {
       try {
         const roleId = process.env.DISCORD_PING_ROLE_ID;
         const content = roleId ? `<@&${roleId}>` : undefined;
-        await channel.send({ content, embeds: [embed] });
+        const message = await channel.send({ content, embeds: [embed] });
+        if (channel.type === ChannelType.GuildAnnouncement) {
+          await message.crosspost();
+        }
         console.log(`[Webhook] Sent embed for event: ${event}`);
       } catch (err) {
         console.error('[Webhook] Failed to send embed:', err.message);

@@ -29,19 +29,21 @@ function buildPushEmbed(payload) {
   const branch = ref.replace('refs/heads/', '');
   const repoName = repository.full_name;
 
-  const shown = commits.slice(0, 10);
-  const commitLines = shown
-    .map((c) => {
-      const link = commitLink(c.id, c.url);
-      const msg = truncate(c.message.split('\n')[0], 72);
-      return `${link} ${msg} — **${c.author.name}**`;
-    })
-    .join('\n');
+  let description = '';
+  let shownCount = 0;
 
-  const overflow =
-    commits.length > 10
-      ? `\n*…and ${commits.length - 10} more commit${commits.length - 10 !== 1 ? 's' : ''}.*`
-      : '';
+  for (const c of commits.slice(0, 10)) {
+    const block = `${commitLink(c.id, c.url)} **${c.author.name}**\n${c.message}`;
+    const separator = description ? '\n\n' : '';
+    if (description.length + separator.length + block.length > 4000) break;
+    description += separator + block;
+    shownCount++;
+  }
+
+  const hidden = commits.length - shownCount;
+  if (hidden > 0) {
+    description += `\n\n*…and ${hidden} more commit${hidden !== 1 ? 's' : ''}.*`;
+  }
 
   return new EmbedBuilder()
     .setColor(COLORS.push)
@@ -54,7 +56,7 @@ function buildPushEmbed(payload) {
       `[${repoName}:${branch}] ${commits.length} new commit${commits.length !== 1 ? 's' : ''}`,
     )
     .setURL(compare)
-    .setDescription(`${commitLines}${overflow}`)
+    .setDescription(description)
     .setTimestamp(head_commit ? new Date(head_commit.timestamp) : new Date())
     .setFooter({ text: 'GitHub', iconURL: GITHUB_ICON });
 }
@@ -155,6 +157,24 @@ function buildIssueEmbed(payload) {
     .setFooter({ text: 'GitHub', iconURL: GITHUB_ICON });
 }
 
+function buildStarEmbed(payload) {
+  const { sender, repository, action } = payload;
+  if (action !== 'created') return null;
+
+  return new EmbedBuilder()
+    .setColor(COLORS.star)
+    .setAuthor({
+      name: sender.login,
+      iconURL: sender.avatar_url,
+      url: sender.html_url,
+    })
+    .setTitle(`${repository.full_name} received a new star`)
+    .setURL(repository.html_url)
+    .setDescription(`**${sender.login}** starred the repository. Total stars: **${repository.stargazers_count}**`)
+    .setTimestamp(new Date())
+    .setFooter({ text: 'GitHub', iconURL: GITHUB_ICON });
+}
+
 function buildReleaseEmbed(payload) {
   const { action, release, repository } = payload;
   if (action !== 'published') return null;
@@ -184,4 +204,5 @@ module.exports = {
   buildPullRequestEmbed,
   buildIssueEmbed,
   buildReleaseEmbed,
+  buildStarEmbed,
 };
