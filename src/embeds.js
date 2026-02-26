@@ -1,15 +1,16 @@
 const { EmbedBuilder } = require('discord.js');
 
 const COLORS = {
-  push:           0x4078c0, // GitHub blue
-  pr_opened:      0x2cbe4e, // GitHub green
-  pr_merged:      0x6f42c1, // GitHub purple
-  pr_closed:      0xcb2431, // GitHub red
+  push:           0x4078c0,
+  pr_opened:      0x2cbe4e,
+  pr_merged:      0x6f42c1,
+  pr_closed:      0xcb2431,
   pr_reopened:    0x2cbe4e,
-  issue_opened:   0xe4a13f, // GitHub orange
+  issue_opened:   0xe4a13f,
   issue_closed:   0xcb2431,
   issue_reopened: 0x2cbe4e,
-  release:        0x0075ca, // GitHub dark blue
+  release:        0x0075ca,
+  star:           0xf1c40f,
 };
 
 const GITHUB_ICON =

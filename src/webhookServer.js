@@ -98,7 +98,7 @@ function createWebhookServer(discordClient) {
         case 'release':
           embed = buildReleaseEmbed(payload);
           break;
-        case 'watch':
+        case 'star':
           embed = buildStarEmbed(payload);
           break;
         default:
