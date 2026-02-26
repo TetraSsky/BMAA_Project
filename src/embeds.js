@@ -171,7 +171,7 @@ function buildStarEmbed(payload) {
     })
     .setTitle(`${repository.full_name} received a new star`)
     .setURL(repository.html_url)
-    .setDescription(`**${sender.login}** starred the repository. Total stars: **${repository.stargazers_count}**`)
+    .setDescription(`**${sender.login}** starred the repository !`)
     .setTimestamp(new Date())
     .setFooter({ text: 'GitHub', iconURL: GITHUB_ICON });
 }
