@@ -112,7 +112,7 @@ function createWebhookServer(discordClient) {
     if (embed) {
       try {
         const roleId = process.env.DISCORD_PING_ROLE_ID;
-        const content = roleId ? `<@&${roleId}>` : undefined;
+        const content = roleId && event !== 'star' ? `<@&${roleId}>` : undefined;
         const message = await channel.send({ content, embeds: [embed] });
         if (channel.type === ChannelType.GuildAnnouncement) {
           await message.crosspost();
