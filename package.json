@@ -1,5 +1,5 @@
 {
-  "name": "bmaa-discord-bot",
+  "name": "tbs-discord-bot",
   "version": "1.0.0",
   "description": "Discord bot with customizable GitHub webhook embeds, hosted on fly.io",
   "main": "src/index.js",

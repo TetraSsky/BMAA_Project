@@ -13,7 +13,7 @@ const client = new Client({
 
 client.once('ready', () => {
   console.log(`[Bot] Logged in as ${client.user.tag}`);
-  client.user.setActivity('TetraSsky/BlenderModelsAndAnims', { type: ActivityType.Playing });
+  client.user.setActivity('TetraSsky/TetraSkyBlenderStuff', { type: ActivityType.Playing });
 
   const PORT = parseInt(process.env.PORT || '8080', 10);
   const app = createWebhookServer(client);
