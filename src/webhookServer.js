@@ -12,13 +12,18 @@ const {
 function verifySignature(rawBody, secret, signatureHeader) {
   if (!secret) return true;
   if (!signatureHeader) return false;
+  if (!rawBody) return false;
+
+  const signatureValue = Array.isArray(signatureHeader)
+    ? signatureHeader[0]
+    : signatureHeader;
 
   const hmac = crypto.createHmac('sha256', secret);
   const expected = 'sha256=' + hmac.update(rawBody).digest('hex');
 
   try {
     return crypto.timingSafeEqual(
-      Buffer.from(signatureHeader),
+      Buffer.from(signatureValue),
       Buffer.from(expected),
     );
   } catch {
@@ -31,6 +36,7 @@ function createWebhookServer(discordClient) {
 
   app.use(
     express.json({
+      limit: '2mb',
       verify: (req, _res, buf) => {
         req.rawBody = buf;
       },
@@ -42,23 +48,28 @@ function createWebhookServer(discordClient) {
   app.post('/webhook', async (req, res) => {
     const secret = process.env.GITHUB_WEBHOOK_SECRET;
     const signature = req.headers['x-hub-signature-256'];
-
-    if (!verifySignature(req.rawBody, secret, signature)) {
-      console.warn('[Webhook] Rejected: invalid or missing signature');
-      return res.status(401).json({ error: 'Invalid signature' });
-    }
-
+    const deliveryId = req.headers['x-github-delivery'] || 'unknown-delivery';
     const event = req.headers['x-github-event'];
     const payload = req.body;
 
+    console.log(
+      `[Webhook] Delivery ${deliveryId}: event="${event || 'unknown'}" repo="${payload?.repository?.full_name || 'unknown'}"`,
+    );
+
+    if (!verifySignature(req.rawBody, secret, signature)) {
+      console.warn(`[Webhook] Delivery ${deliveryId} rejected: invalid or missing signature`);
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+
     if (!event || !payload) {
+      console.warn(`[Webhook] Delivery ${deliveryId} rejected: missing event or payload`);
       return res.status(400).json({ error: 'Missing event or payload' });
     }
 
     res.status(200).json({ ok: true });
 
     if (event === 'ping') {
-      console.log(`[Webhook] Ping received from repo "${payload.repository?.full_name}"`);
+      console.log(`[Webhook] Delivery ${deliveryId}: ping received from repo "${payload.repository?.full_name}"`);
       return;
     }
 
@@ -85,9 +96,7 @@ function createWebhookServer(discordClient) {
     try {
       switch (event) {
         case 'push':
-          if (payload.commits?.length > 0) {
-            embed = buildPushEmbed(payload);
-          }
+          embed = buildPushEmbed(payload);
           break;
         case 'pull_request':
           embed = buildPullRequestEmbed(payload);
@@ -117,11 +126,28 @@ function createWebhookServer(discordClient) {
         if (channel.type === ChannelType.GuildAnnouncement) {
           await message.crosspost();
         }
-        console.log(`[Webhook] Sent embed for event: ${event}`);
+        console.log(`[Webhook] Delivery ${deliveryId}: sent embed for event "${event}"`);
       } catch (err) {
-        console.error('[Webhook] Failed to send embed:', err.message);
+        console.error(`[Webhook] Delivery ${deliveryId}: failed to send embed:`, err.message);
       }
+    } else {
+      console.log(`[Webhook] Delivery ${deliveryId}: no embed generated for event "${event}"`);
     }
+  });
+
+  app.use((err, _req, res, _next) => {
+    if (err?.type === 'entity.too.large') {
+      console.warn('[Webhook] Rejected: payload too large for JSON parser');
+      return res.status(413).json({ error: 'Payload too large' });
+    }
+
+    if (err instanceof SyntaxError && 'body' in err) {
+      console.warn('[Webhook] Rejected: invalid JSON payload');
+      return res.status(400).json({ error: 'Invalid JSON' });
+    }
+
+    console.error('[Webhook] Unexpected server error:', err.message);
+    return res.status(500).json({ error: 'Internal server error' });
   });
 
   return app;

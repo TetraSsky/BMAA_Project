@@ -27,13 +27,14 @@ function commitLink(sha, url) {
 
 function buildPushEmbed(payload) {
   const { repository, pusher, commits, ref, compare, head_commit } = payload;
-  const branch = ref.replace('refs/heads/', '');
+  const branch = (ref || '').replace('refs/heads/', '') || 'unknown-branch';
   const repoName = repository.full_name;
+  const safeCommits = Array.isArray(commits) ? commits : [];
 
   let description = '';
   let shownCount = 0;
 
-  for (const c of commits.slice(0, 10)) {
+  for (const c of safeCommits.slice(0, 10)) {
     const block = `${commitLink(c.id, c.url)} **${c.author.name}**\n${c.message}`;
     const separator = description ? '\n\n' : '';
     if (description.length + separator.length + block.length > 4000) break;
@@ -41,22 +42,28 @@ function buildPushEmbed(payload) {
     shownCount++;
   }
 
-  const hidden = commits.length - shownCount;
+  const hidden = safeCommits.length - shownCount;
   if (hidden > 0) {
     description += `\n\n*…and ${hidden} more commit${hidden !== 1 ? 's' : ''}.*`;
   }
 
+  if (!description) {
+    description = '*Push received with no commit list in payload.*';
+  }
+
+  const authorName = pusher?.name || 'unknown';
+
   return new EmbedBuilder()
     .setColor(COLORS.push)
     .setAuthor({
-      name: pusher.name,
-      iconURL: `https://github.com/${pusher.name}.png?size=32`,
-      url: `https://github.com/${pusher.name}`,
+      name: authorName,
+      iconURL: `https://github.com/${authorName}.png?size=32`,
+      url: `https://github.com/${authorName}`,
     })
     .setTitle(
-      `[${repoName}:${branch}] ${commits.length} new commit${commits.length !== 1 ? 's' : ''}`,
+      `[${repoName}:${branch}] ${safeCommits.length} new commit${safeCommits.length !== 1 ? 's' : ''}`,
     )
-    .setURL(compare)
+    .setURL(compare || repository.html_url)
     .setDescription(description)
     .setTimestamp(head_commit ? new Date(head_commit.timestamp) : new Date())
     .setFooter({ text: 'GitHub', iconURL: GITHUB_ICON });
